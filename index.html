@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>🔐 Encryption / Decryption Tool</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- CryptoJS (AES + PBKDF2) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #050816;
+      --bg-soft: #0b1020;
+      --accent: #4f46e5;
+      --accent-soft: rgba(79, 70, 229, 0.15);
+      --accent-strong: #22c55e;
+      --text-main: #e5e7eb;
+      --text-soft: #9ca3af;
+      --border-subtle: #1f2937;
+      --error: #f97373;
+      --warning: #fbbf24;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #111827, #020617 60%);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 32px 16px;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 1100px;
+      background: linear-gradient(145deg, rgba(15, 23, 42, 0.98), rgba(15, 23, 42, 0.92));
+      border-radius: 18px;
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      box-shadow:
+        0 24px 80px rgba(15, 23, 42, 0.9),
+        0 0 0 1px rgba(15, 23, 42, 0.8);
+      padding: 24px 24px 28px;
+    }
+
+    .app-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+      border-bottom: 1px solid rgba(31, 41, 55, 0.9);
+      padding-bottom: 12px;
+    }
+
+    .title-block h1 {
+      margin: 0;
+      font-size: 1.4rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .title-block p {
+      margin: 4px 0 0;
+      font-size: 0.9rem;
+      color: var(--text-soft);
+    }
+
+    .status-badges {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .badge {
+      font-size: 0.75rem;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+      background: rgba(15, 23, 42, 0.9);
+      color: var(--text-soft);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .badge--success {
+      border-color: rgba(34, 197, 94, 0.6);
+      color: #bbf7d0;
+      background: rgba(22, 163, 74, 0.12);
+    }
+
+    .badge--info {
+      border-color: rgba(59, 130, 246, 0.6);
+      color: #bfdbfe;
+      background: rgba(37, 99, 235, 0.12);
+    }
+
+    .badge--warn {
+      border-color: rgba(234, 179, 8, 0.6);
+      color: #fef3c7;
+      background: rgba(202, 138, 4, 0.12);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .tab {
+      padding: 6px 12px;
+      border-radius: 999px;
+      border: 1px solid transparent;
+      background: rgba(15, 23, 42, 0.8);
+      color: var(--text-soft);
+      font-size: 0.85rem;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: 0.16s ease;
+    }
+
+    .tab:hover {
+      border-color: rgba(148, 163, 184, 0.6);
+    }
+
+    .tab--active {
+      background: linear-gradient(135deg, var(--accent), #6366f1);
+      color: white;
+      border-color: rgba(191, 219, 254, 0.8);
+      box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.6), 0 6px 16px rgba(79, 70, 229, 0.6);
+    }
+
+    .content-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 3.5fr) minmax(0, 3fr);
+      gap: 16px;
+    }
+
+    .card {
+      background: radial-gradient(circle at top, #020617, #020617 40%, #020617 70%);
+      border-radius: 14px;
+      border: 1px solid rgba(31, 41, 55, 0.9);
+      padding: 14px 14px 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: -1px;
+      border-radius: inherit;
+      padding: 1px;
+      background: conic-gradient(
+        from 180deg,
+        rgba(37, 99, 235, 0.3),
+        rgba(129, 140, 248, 0.6),
+        rgba(56, 189, 248, 0.3),
+        rgba(22, 163, 74, 0.5),
+        transparent 55%
+      );
+      mask:
+        linear-gradient(#000, #000) content-box,
+        linear-gradient(#000, #000);
+      mask-composite: exclude;
+      opacity: 0.12;
+      pointer-events: none;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .card-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .card-title span.icon {
+      width: 18px;
+      height: 18px;
+      border-radius: 6px;
+      background: radial-gradient(circle, rgba(129, 140, 248, 0.4), transparent 60%);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+    }
+
+    .card-sub {
+      font-size: 0.75rem;
+      color: var(--text-soft);
+    }
+
+    label {
+      display: block;
+      font-size: 0.8rem;
+      margin-bottom: 4px;
+      color: var(--text-soft);
+    }
+
+    label span.hint {
+      font-size: 0.75rem;
+      color: #64748b;
+    }
+
+    textarea,
+    input,
+    select {
+      width: 100%;
+      background: radial-gradient(circle at top left, #020617, #020617 50%);
+      border-radius: 10px;
+      border: 1px solid rgba(30, 64, 175, 0.8);
+      padding: 8px 10px;
+      color: var(--text-main);
+      font-size: 0.85rem;
+      outline: none;
+      resize: vertical;
+      min-height: 90px;
+    }
+
+    textarea:focus,
+    input:focus,
+    select:focus {
+      border-color: #6366f1;
+      box-shadow:
+        0 0 0 1px rgba(79, 70, 229, 0.8),
+        0 0 25px rgba(59, 130, 246, 0.35);
+    }
+
+    input {
+      min-height: auto;
+    }
+
+    select {
+      min-height: auto;
+      cursor: pointer;
+    }
+
+    .field-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .inline-fields {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .inline-fields .inline {
+      flex: 1 1 160px;
+    }
+
+    .btn-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    button {
+      border-radius: 999px;
+      border: 1px solid transparent;
+      padding: 7px 13px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(15, 23, 42, 0.95);
+      color: var(--text-main);
+      transition: 0.15s ease;
+    }
+
+    button.primary {
+      background: linear-gradient(135deg, var(--accent), #6366f1);
+      border-color: rgba(191, 219, 254, 0.85);
+      color: white;
+      box-shadow: 0 6px 18px rgba(79, 70, 229, 0.7);
+    }
+
+    button.primary:hover {
+      filter: brightness(1.05);
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(79, 70, 229, 0.85);
+    }
+
+    button.secondary {
+      border-color: rgba(55, 65, 81, 0.85);
+      background: rgba(15, 23, 42, 0.95);
+      color: var(--text-soft);
+    }
+
+    button.secondary:hover {
+      border-color: rgba(148, 163, 184, 0.9);
+      color: var(--text-main);
+    }
+
+    button.outline {
+      background: transparent;
+      border-color: rgba(148, 163, 184, 0.6);
+      color: var(--text-soft);
+    }
+
+    .muted {
+      font-size: 0.78rem;
+      color: var(--text-soft);
+      margin-top: 4px;
+    }
+
+    .output-box {
+      background: radial-gradient(circle at top, rgba(15, 23, 42, 0.9), #020617);
+      border-radius: 10px;
+      border: 1px dashed rgba(55, 65, 81, 0.9);
+      padding: 8px 10px;
+      min-height: 80px;
+      font-size: 0.8rem;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 4px;
+    }
+
+    .pill {
+      font-size: 0.7rem;
+      padding: 2px 7px;
+      border-radius: 999px;
+      border: 1px solid rgba(55, 65, 81, 0.9);
+      color: #d1d5db;
+      background: rgba(15, 23, 42, 0.9);
+    }
+
+    .pill--accent {
+      border-color: rgba(79, 70, 229, 0.9);
+      background: rgba(79, 70, 229, 0.22);
+      color: #e0e7ff;
+    }
+
+    .pill--success {
+      border-color: rgba(34, 197, 94, 0.9);
+      background: rgba(22, 163, 74, 0.2);
+      color: #bbf7d0;
+    }
+
+    .pill--warn {
+      border-color: rgba(234, 179, 8, 0.9);
+      background: rgba(234, 179, 8, 0.18);
+      color: #fef3c7;
+    }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .metric {
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(31, 41, 55, 0.95);
+      border-radius: 10px;
+      padding: 6px 8px;
+      font-size: 0.75rem;
+    }
+
+    .metric-label {
+      color: var(--text-soft);
+      margin-bottom: 2px;
+    }
+
+    .metric-value {
+      font-weight: 600;
+      font-size: 0.78rem;
+    }
+
+    .batch-input {
+      min-height: 120px;
+    }
+
+    .batch-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.75rem;
+      margin-top: 8px;
+    }
+
+    .batch-table th,
+    .batch-table td {
+      border-bottom: 1px solid rgba(31, 41, 55, 0.9);
+      padding: 4px 6px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .batch-table th {
+      color: var(--text-soft);
+      font-weight: 500;
+    }
+
+    .tag-ok {
+      color: #bbf7d0;
+    }
+
+    .tag-err {
+      color: #fecaca;
+    }
+
+    .security-list {
+      font-size: 0.8rem;
+      padding-left: 16px;
+      margin: 4px 0 0;
+      color: var(--text-soft);
+    }
+
+    .security-list li {
+      margin-bottom: 2px;
+    }
+
+    .toast {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      border: 1px solid rgba(31, 41, 55, 0.95);
+      background: rgba(15, 23, 42, 0.98);
+      color: var(--text-main);
+      display: none;
+      align-items: center;
+      gap: 6px;
+      z-index: 40;
+      box-shadow: 0 12px 40px rgba(15, 23, 42, 0.9);
+    }
+
+    .toast--success {
+      border-color: rgba(34, 197, 94, 0.8);
+      color: #bbf7d0;
+    }
+
+    .toast--error {
+      border-color: rgba(248, 113, 113, 0.9);
+      color: #fecaca;
+    }
+
+    .toast--show {
+      display: inline-flex;
+      animation: fadeInOut 2.8s ease forwards;
+    }
+
+    @keyframes fadeInOut {
+      0% {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+      10% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      80% {
+        opacity: 1;
+        transform: translateY(0);
+      }
+      100% {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+    }
+
+    @media (max-width: 830px) {
+      .content-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    @media (max-width: 550px) {
+      body {
+        padding: 16px 8px;
+      }
+
+      .app {
+        padding: 16px 14px 18px;
+      }
+
+      .title-block h1 {
+        font-size: 1.1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <div class="title-block">
+        <h1>🔐 Encryption / Decryption Tool</h1>
+        <p>AES‑128/192/256 encryption with PBKDF2 key derivation – all client‑side.</p>
+      </div>
+      <div class="status-badges">
+        <div class="badge badge--success">● Production Ready</div>
+        <div class="badge badge--info">AES‑CBC + PBKDF2</div>
+        <div class="badge badge--warn">Client‑Side Only</div>
+      </div>
+    </header>
+
+    <nav class="tabs">
+      <button class="tab tab--active" data-tab="encrypt">Encrypt</button>
+      <button class="tab" data-tab="decrypt">Decrypt</button>
+      <button class="tab" data-tab="batch">Batch</button>
+      <button class="tab" data-tab="keys">Key Management</button>
+      <button class="tab" data-tab="security">Security Info</button>
+    </nav>
+
+    <!-- Encrypt -->
+    <section class="tab-panel" id="tab-encrypt">
+      <div class="content-grid">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">
+                <span class="icon">E</span>
+                Encrypt Data
+              </div>
+              <div class="card-sub">Convert plaintext into AES‑encrypted ciphertext.</div>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <div>
+              <label for="enc-plaintext">Plaintext <span class="hint"> (passwords, secrets, notes)</span></label>
+              <textarea id="enc-plaintext" placeholder="Enter text to encrypt..."></textarea>
+            </div>
+
+            <div class="inline-fields">
+              <div class="inline">
+                <label for="enc-password">Password</label>
+                <input id="enc-password" type="password" placeholder="Strong encryption password" />
+                <p class="muted">Use a unique, high‑entropy password. You must remember this to decrypt later.</p>
+              </div>
+              <div class="inline">
+                <label for="enc-algo">Algorithm</label>
+                <select id="enc-algo">
+                  <option value="256">AES‑256 (recommended)</option>
+                  <option value="192">AES‑192</option>
+                  <option value="128">AES‑128</option>
+                </select>
+                <p class="muted">AES‑256 offers strongest protection; AES‑128 is fastest.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button class="primary" id="btn-encrypt">Encrypt Data</button>
+            <button class="secondary" id="btn-enc-clear">Clear</button>
+            <button class="outline" id="btn-enc-genpwd">Generate Password</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">
+                <span class="icon">↧</span>
+                Ciphertext Output
+              </div>
+              <div class="card-sub">Copy or download the encrypted payload.</div>
+            </div>
+          </div>
+
+          <div id="enc-output" class="output-box">Ciphertext will appear here after encryption.</div>
+
+          <div class="btn-row" style="margin-top: 6px;">
+            <button class="secondary" id="btn-enc-copy">Copy Ciphertext</button>
+            <button class="secondary" id="btn-enc-download">Download .txt</button>
+          </div>
+
+          <div class="metrics">
+            <div class="metric">
+              <div class="metric-label">Plaintext Size</div>
+              <div class="metric-value" id="metric-plain-size">0 bytes</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Ciphertext Size</div>
+              <div class="metric-value" id="metric-cipher-size">0 bytes</div>
+            </div>
+            <div class="metric">
+              <div class="metric-label">Algorithm</div>
+              <div class="metric-value" id="metric-algo">–</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Decrypt -->
+    <section class="tab-panel" id="tab-decrypt" style="display:none;">
+      <div class="content-grid">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">
+                <span class="icon">D</span>
+                Decrypt Data
+              </div>
+              <div class="card-sub">Recover original plaintext from AES‑encrypted ciphertext.</div>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <div>
+              <label for="dec-cipher">Encrypted Text</label>
+              <textarea id="dec-cipher" placeholder="Paste ciphertext generated by this tool..."></textarea>
+            </div>
+            <div>
+              <label for="dec-password">Password</label>
+              <input id="dec-password" type="password" placeholder="Password used for encryption" />
+              <p class="muted">Must be identical to the password originally used to encrypt.</p>
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button class="primary" id="btn-decrypt">Decrypt Data</button>
+            <button class="secondary" id="btn-dec-clear">Clear</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">
+                <span class="icon">↧</span>
+                Plaintext Output
+              </div>
+              <div class="card-sub">Decrypted result, if password and data are valid.</div>
+            </div>
+          </div>
+
+          <div id="dec-output" class="output-box">Plaintext will appear here after decryption.</div>
+
+          <div class="btn-row" style="margin-top: 6px;">
+            <button class="secondary" id="btn-dec-copy">Copy Plaintext</button>
+            <button class="secondary" id="btn-dec-download">Download .txt</button>
+          </div>
+
+          <p class="muted">
+            If decryption fails, verify the ciphertext was not modified and the password is correct.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Batch -->
+    <section class="tab-panel" id="tab-batch" style="display:none;">
+      <div class="content-grid">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">
+                <span class="icon">B</span>
+                Batch Encryption
+              </div>
+              <div class="card-sub">Encrypt multiple lines at once with a single password.</div>
+            </div>
+          </div>
+
+          <div class="field-group">
+            <div>
+              <label for="batch-text">Lines to Encrypt</label>
+              <textarea id="batch-text" class="batch-input" placeholder="One entry per line..."></textarea>
+              <p class="muted">Each line will be encrypted independently but with the same password.</p>
+            </div>
+            <div>
+              <label for="batch-password">Password</label>
+              <input id="batch-password" type="password" placeholder="Shared password for all lines" />
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button class="primary" id="btn-batch-encrypt">Encrypt Batch</button>
+            <button class="secondary" id="btn-batch-clear">Clear</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">
+                <span class="icon">T</span>
+                Batch Results
+              </div>
+              <div class="card-sub">Encrypted lines with copy & export options.</div>
+            </div>
+          </div>
+
+          <div id="batch-results-wrapper">
+            <p class="muted">Encrypted batch results will appear here.</p>
+          </div>
+
+          <div class="btn-row" style="margin-top: 6px;">
+            <button class="secondary" id="btn-batch-download">Download CSV</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Keys -->
+    <section class="tab-panel" id="tab-keys" style="display:none;">
+      <div class="content-grid">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">
+                <span class="icon">K</span>
+                Password Generator
+              </div>
+              <div class="card-sub">Generate high‑entropy passwords for encryption.</div>
+            </div>
+          </div>
+
+          <p class="muted">
+            Use strong, unique passwords and store them in a password manager. Losing the password means
+            losing access to encrypted data.
+          </p>
+
+          <div class="btn-row">
+            <button class="primary" id="btn-keys-generate">Generate 32‑Char Password</button>
+          </div>
+
+          <div class="field-group" style="margin-top: 10px;">
+            <label for="keys-output">Generated Password</label>
+            <input id="keys-output" type="text" readonly placeholder="Click generate to create a password..." />
+          </div>
+
+          <div class="btn-row">
+            <button class="secondary" id="btn-keys-copy">Copy Password</button>
+          </div>
+
+          <div class="pill-row">
+            <span class="pill pill--accent">Min length: 16+</span>
+            <span class="pill pill--success">Use a password manager</span>
+            <span class="pill pill--warn">Never reuse passwords</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">
+                <span class="icon">ℹ</span>
+                Key Management Notes
+              </div>
+              <div class="card-sub">Concepts to discuss in interviews.</div>
+            </div>
+          </div>
+
+          <ul class="security-list">
+            <li>Keys are derived from passwords using PBKDF2 with a random salt.</li>
+            <li>Salts prevent reuse of precomputed rainbow tables against stored ciphertexts.</li>
+            <li>Never hardcode encryption keys; always derive or supply them at runtime.</li>
+            <li>Use different passwords/keys for different systems and environments.</li>
+            <li>Rotate keys/passwords periodically for sensitive long‑lived data.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- Security -->
+    <section class="tab-panel" id="tab-security" style="display:none;">
+      <div class="content-grid">
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">
+                <span class="icon">S</span>
+                Security Model
+              </div>
+              <div class="card-sub">How this tool is designed to protect data.</div>
+            </div>
+          </div>
+
+          <ul class="security-list">
+            <li><strong>Client‑side only:</strong> All encryption and decryption happen in the browser. No data is sent to a server.</li>
+            <li><strong>AES‑CBC:</strong> Uses AES with CBC mode and a random IV for each encryption.</li>
+            <li><strong>PBKDF2:</strong> Derives keys from passwords using a salt and iterations to slow brute‑force attacks.</li>
+            <li><strong>Base64 output:</strong> Encoded ciphertext is safe to copy into emails, notes, or config files.</li>
+            <li><strong>No persistence:</strong> Data is not stored in localStorage or cookies by default.</li>
+          </ul>
+
+          <p class="muted" style="margin-top: 8px;">
+            This project is for educational and portfolio purposes and should be combined with proper key management,
+            secure deployment, and defense‑in‑depth in production environments.
+          </p>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">
+                <span class="icon">⚠</span>
+                Usage Guidelines
+              </div>
+              <div class="card-sub">Best practices & limitations.</div>
+            </div>
+          </div>
+
+          <ul class="security-list">
+            <li>Always test decryption before deleting original data.</li>
+            <li>Deploy over HTTPS only; avoid using cryptographic tools over plain HTTP.</li>
+            <li>Use a trusted, up‑to‑date browser on a secure machine.</li>
+            <li>Do not rely solely on client‑side encryption for regulatory compliance without expert review.</li>
+            <li>Use this responsibly and within the bounds of applicable laws and policies.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div id="toast" class="toast">
+    <span id="toast-icon">●</span>
+    <span id="toast-text"></span>
+  </div>
+
+  <script>
+    // ----- Tabs -----
+    const tabs = document.querySelectorAll(".tab");
+    const panels = document.querySelectorAll(".tab-panel");
+
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        tabs.forEach((t) => t.classList.remove("tab--active"));
+        tab.classList.add("tab--active");
+
+        const target = tab.dataset.tab;
+        panels.forEach((p) => {
+          p.style.display = p.id === "tab-" + target ? "block" : "none";
+        });
+      });
+    });
+
+    // ----- Toast -----
+    const toast = document.getElementById("toast");
+    const toastText = document.getElementById("toast-text");
+    const toastIcon = document.getElementById("toast-icon");
+    let toastTimeout;
+
+    function showToast(message, type = "success") {
+      toast.classList.remove("toast--success", "toast--error", "toast--show");
+      toastText.textContent = message;
+      if (type === "error") {
+        toast.classList.add("toast--error");
+        toastIcon.textContent = "⚠";
+      } else {
+        toast.classList.add("toast--success");
+        toastIcon.textContent = "✔";
+      }
+      void toast.offsetWidth;
+      toast.classList.add("toast--show");
+
+      clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.remove("toast--show");
+      }, 2600);
+    }
+
+    // ----- Crypto helpers -----
+    function deriveKey(password, salt, keySizeBits, iterations = 1000) {
+      return CryptoJS.PBKDF2(password, salt, {
+        keySize: keySizeBits / 32,
+        iterations,
+        hasher: CryptoJS.algo.SHA256
+      });
+    }
+
+    function encryptText(plaintext, password, keySizeBits) {
+      const salt = CryptoJS.lib.WordArray.random(16);
+      const key = deriveKey(password, salt, keySizeBits);
+      const iv = CryptoJS.lib.WordArray.random(16);
+
+      const encrypted = CryptoJS.AES.encrypt(plaintext, key, {
+        iv,
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7
+      });
+
+      const payload = salt.toString() + iv.toString() + encrypted.toString();
+      return CryptoJS.enc.Base64.stringify(CryptoJS.enc.Utf8.parse(payload));
+    }
+
+    function decryptText(cipherBase64, password, keySizeBits) {
+      try {
+        const decoded = CryptoJS.enc.Base64.parse(cipherBase64).toString(CryptoJS.enc.Utf8);
+        const saltHex = decoded.slice(0, 32);
+        const ivHex = decoded.slice(32, 64);
+        const cipherHex = decoded.slice(64);
+
+        const salt = CryptoJS.enc.Hex.parse(saltHex);
+        const iv = CryptoJS.enc.Hex.parse(ivHex);
+        const encrypted = cipherHex;
+
+        const key = deriveKey(password, salt, keySizeBits);
+
+        const decrypted = CryptoJS.AES.decrypt(encrypted, key, {
+          iv,
+          mode: CryptoJS.mode.CBC,
+          padding: CryptoJS.pad.Pkcs7
+        });
+
+        const plaintext = decrypted.toString(CryptoJS.enc.Utf8);
+        if (!plaintext) {
+          return null;
+        }
+        return plaintext;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function byteLength(str) {
+      return new Blob([str || ""]).size;
+    }
+
+    // ----- DOM elements -----
+    const encPlainEl = document.getElementById("enc-plaintext");
+    const encPassEl = document.getElementById("enc-password");
+    const encAlgoEl = document.getElementById("enc-algo");
+    const encOutEl = document.getElementById("enc-output");
+    const metricPlainEl = document.getElementById("metric-plain-size");
+    const metricCipherEl = document.getElementById("metric-cipher-size");
+    const metricAlgoEl = document.getElementById("metric-algo");
+
+    const decCipherEl = document.getElementById("dec-cipher");
+    const decPassEl = document.getElementById("dec-password");
+    const decOutEl = document.getElementById("dec-output");
+
+    const batchTextEl = document.getElementById("batch-text");
+    const batchPassEl = document.getElementById("batch-password");
+    const batchResultsWrapper = document.getElementById("batch-results-wrapper");
+
+    const keysOutputEl = document.getElementById("keys-output");
+
+    // ----- Encrypt handlers -----
+    document.getElementById("btn-encrypt").addEventListener("click", () => {
+      const plaintext = encPlainEl.value;
+      const password = encPassEl.value;
+      const keySize = parseInt(encAlgoEl.value, 10);
+
+      if (!plaintext || !password) {
+        showToast("Enter plaintext and password to encrypt.", "error");
+        return;
+      }
+
+      const t0 = performance.now();
+      const cipher = encryptText(plaintext, password, keySize);
+      const t1 = performance.now();
+
+      encOutEl.textContent = cipher;
+      metricPlainEl.textContent = byteLength(plaintext) + " bytes";
+      metricCipherEl.textContent = byteLength(cipher) + " bytes";
+      metricAlgoEl.textContent = "AES-" + keySize + " (" + Math.round(t1 - t0) + " ms)";
+
+      showToast("Data encrypted successfully.");
+    });
+
+    document.getElementById("btn-enc-clear").addEventListener("click", () => {
+      encPlainEl.value = "";
+      encPassEl.value = "";
+      encOutEl.textContent = "Ciphertext will appear here after encryption.";
+      metricPlainEl.textContent = "0 bytes";
+      metricCipherEl.textContent = "0 bytes";
+      metricAlgoEl.textContent = "–";
+    });
+
+    document.getElementById("btn-enc-copy").addEventListener("click", () => {
+      const text = encOutEl.textContent.trim();
+      if (!text || text.startsWith("Ciphertext will appear")) {
+        showToast("Nothing to copy yet.", "error");
+        return;
+      }
+      navigator.clipboard.writeText(text).then(
+        () => showToast("Ciphertext copied."),
+        () => showToast("Clipboard blocked by browser.", "error")
+      );
+    });
+
+    document.getElementById("btn-enc-download").addEventListener("click", () => {
+      const text = encOutEl.textContent.trim();
+      if (!text || text.startsWith("Ciphertext will appear")) {
+        showToast("Nothing to download yet.", "error");
+        return;
+      }
+      const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "encrypted_data.txt";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    });
+
+    document.getElementById("btn-enc-genpwd").addEventListener("click", () => {
+      const pwd = generatePassword(32);
+      encPassEl.value = pwd;
+      showToast("Strong password generated. Don’t forget to store it securely.");
+    });
+
+    // ----- Decrypt handlers -----
+    document.getElementById("btn-decrypt").addEventListener("click", () => {
+      const cipher = decCipherEl.value.trim();
+      const password = decPassEl.value;
+
+      if (!cipher || !password) {
+        showToast("Enter ciphertext and password to decrypt.", "error");
+        return;
+      }
+
+      const keySize = 256;
+      const t0 = performance.now();
+      const plaintext = decryptText(cipher, password, keySize);
+      const t1 = performance.now();
+
+      if (plaintext === null) {
+        decOutEl.textContent = "Decryption failed. Password may be incorrect or data corrupted.";
+        showToast("Decryption failed.", "error");
+      } else {
+        decOutEl.textContent = plaintext;
+        showToast("Data decrypted (" + Math.round(t1 - t0) + " ms).");
+      }
+    });
+
+    document.getElementById("btn-dec-clear").addEventListener("click", () => {
+      decCipherEl.value = "";
+      decPassEl.value = "";
+      decOutEl.textContent = "Plaintext will appear here after decryption.";
+    });
+
+    document.getElementById("btn-dec-copy").addEventListener("click", () => {
+      const text = decOutEl.textContent.trim();
+      if (!text || text.startsWith("Plaintext will appear")) {
+        showToast("Nothing to copy yet.", "error");
+        return;
+      }
+      navigator.clipboard.writeText(text).then(
+        () => showToast("Plaintext copied."),
+        () => showToast("Clipboard blocked by browser.", "error")
+      );
+    });
+
+    document.getElementById("btn-dec-download").addEventListener("click", () => {
+      const text = decOutEl.textContent.trim();
+      if (!text || text.startsWith("Plaintext will appear")) {
+        showToast("Nothing to download yet.", "error");
+        return;
+      }
+      const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "decrypted_data.txt";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    });
+
+    // ----- Batch handlers -----
+    document.getElementById("btn-batch-encrypt").addEventListener("click", () => {
+      const lines = batchTextEl.value.split("\n").map(l => l.trim()).filter(Boolean);
+      const password = batchPassEl.value;
+
+      if (!lines.length || !password) {
+        showToast("Enter lines and a password for batch encryption.", "error");
+        return;
+      }
+
+      const keySize = 256;
+      const t0 = performance.now();
+      const results = lines.map((line, idx) => {
+        const cipher = encryptText(line, password, keySize);
+        return { index: idx + 1, plain: line, cipher };
+      });
+      const t1 = performance.now();
+
+      renderBatchResults(results);
+      showToast("Batch encrypted " + results.length + " lines (" + Math.round(t1 - t0) + " ms).");
+    });
+
+    document.getElementById("btn-batch-clear").addEventListener("click", () => {
+      batchTextEl.value = "";
+      batchPassEl.value = "";
+      batchResultsWrapper.innerHTML = '<p class="muted">Encrypted batch results will appear here.</p>';
+    });
+
+    function renderBatchResults(rows) {
+      if (!rows.length) {
+        batchResultsWrapper.innerHTML = '<p class="muted">No results.</p>';
+        return;
+      }
+
+      let html = '<table class="batch-table"><thead><tr><th>#</th><th>Plain (preview)</th><th>Ciphertext</th><th></th></tr></thead><tbody>';
+      rows.forEach(r => {
+        const preview = r.plain.length > 24 ? r.plain.slice(0, 24) + "…" : r.plain;
+        html += `
+          <tr>
+            <td>${r.index}</td>
+            <td>${preview || "<i>(empty)</i>"}</td>
+            <td>${r.cipher.slice(0, 48)}${r.cipher.length > 48 ? "…" : ""}</td>
+            <td><button class="outline" data-copy="${encodeURIComponent(r.cipher)}">Copy</button></td>
+          </tr>
+        `;
+      });
+      html += "</tbody></table>";
+
+      batchResultsWrapper.innerHTML = html;
+
+      // Attach copy handlers
+      batchResultsWrapper.querySelectorAll("button[data-copy]").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const text = decodeURIComponent(btn.getAttribute("data-copy"));
+          navigator.clipboard.writeText(text).then(
+            () => showToast("Ciphertext copied."),
+            () => showToast("Clipboard blocked by browser.", "error")
+          );
+        });
+      });
+
+      batchResultsWrapper.dataset.csv = JSON.stringify(rows);
+    }
+
+    document.getElementById("btn-batch-download").addEventListener("click", () => {
+      const data = batchResultsWrapper.dataset.csv;
+      if (!data) {
+        showToast("No batch results to export.", "error");
+        return;
+      }
+      const rows = JSON.parse(data);
+      let csv = "index,plaintext,ciphertext\n";
+      rows.forEach(r => {
+        const safePlain = '"' + r.plain.replace(/"/g, '""') + '"';
+        const safeCipher = '"' + r.cipher.replace(/"/g, '""') + '"';
+        csv += r.index + "," + safePlain + "," + safeCipher + "\n";
+      });
+
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "batch_results.csv";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    });
+
+    // ----- Keys -----
+    function generatePassword(length = 32) {
+      const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()-_=+[]{};:,.?/|";
+      let result = "";
+      const array = new Uint32Array(length);
+      if (window.crypto && window.crypto.getRandomValues) {
+        window.crypto.getRandomValues(array);
+        for (let i = 0; i < length; i++) {
+          result += chars[array[i] % chars.length];
+        }
+      } else {
+        for (let i = 0; i < length; i++) {
+          result += chars[Math.floor(Math.random() * chars.length)];
+        }
+      }
+      return result;
+    }
+
+    document.getElementById("btn-keys-generate").addEventListener("click", () => {
+      const pwd = generatePassword(32);
+      keysOutputEl.value = pwd;
+      showToast("Password generated.");
+    });
+
+    document.getElementById("btn-keys-copy").addEventListener("click", () => {
+      const val = keysOutputEl.value.trim();
+      if (!val) {
+        showToast("No password to copy.", "error");
+        return;
+      }
+      navigator.clipboard.writeText(val).then(
+        () => showToast("Password copied."),
+        () => showToast("Clipboard blocked by browser.", "error")
+      );
+    });
+  </script>
+</body>
+</html>
